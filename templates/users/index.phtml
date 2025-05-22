@@ -1,0 +1,21 @@
+<form action='/users' method='get'>
+    <input type="search" name="term" value="<?php print_r(htmlspecialchars((string)$term)) ?>" />
+    <input type="submit" value="Search" />
+</form>
+
+<?php if ($flash): ?>
+<small> <font color=green> 
+    <?php foreach ($flash as $mess): ?> 
+    <?php print_r($mess[0]) ?>
+    <?php endforeach?>
+</font> </small>
+<?php endif ?>
+
+<h1> USERS </h1>
+<?php if ($users): ?>
+<?php foreach ($users as $user): ?>
+    <?php ?>
+    <a href="<?= "/users". "/{$user['id']}"?>"> <?= $user['nickname']?> <?= $user['email'] ?> <?= $user['id']?> </a>
+    <br>
+<?php endforeach; ?>
+<?php endif ?>

@@ -1,0 +1,33 @@
+<?php if ($flash): ?>
+<small> <font color=green> 
+    <?php foreach ($flash as $mess): ?> 
+    <?php print_r($mess[0]) ?>
+    <?php endforeach?>
+</font> </small>
+<?php endif ?>
+
+<h1> id = <?= htmlspecialchars($user['id']) ?></h1>
+<h1>Nickname: <?= htmlspecialchars($user['nickname']) ?></h1>
+<h1>Email: <?= htmlspecialchars($user['email']) ?></h1>
+
+
+<lable>
+    <a href='<?= "/users" . "/{$user['id']}" . "/edit"?>'> Редактировать пользователя </a>
+</lable>
+
+<br>
+
+<br>
+
+<lable>
+    <a href="/users/<?= htmlspecialchars($user['id']) ?>/delete"> Удалить пользователя </a>
+</lable>
+
+<br>
+
+<br>
+
+
+<lable>
+    <a href='/users'> ВСЕ пользователи </a>
+</lable>

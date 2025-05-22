@@ -1,0 +1,21 @@
+<form action='/users' method='post'>
+    <div>
+        <lable>
+            nickname
+            <input type="text" required name="user[nickname]" value="<?= htmlspecialchars($user['nickname']) ?>">
+</lable>
+<?php if (isset($errors['nickname'])): ?>
+    <div> <?= $errors['nickname'] ?> </div>
+<?php endif ?>
+</div>
+<div>
+    <label>
+        email
+    <input type='email' required name='user[email]' value="<?= htmlspecialchars((string)$user['email']) ?>">
+</label>
+<?php if (isset($errors['email'])): ?>
+    <div> <?= $errors['email'] ?> </div>
+<?php endif ?>
+</div>
+<input type='submit' value='Sign Up'>
+</form>

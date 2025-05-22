@@ -1,0 +1,8 @@
+<form action='/users/<?= htmlspecialchars($user['id']) ?>' method='post'>
+<input type='hidden' name='_METHOD' value='DELETE'>
+<div>
+<label> Вы уверены, что хотите удалить пользователя <?= $user['nickname'] ?> ? 
+<input type="submit" value="Remove">
+</lable>
+</div>
+</form>
