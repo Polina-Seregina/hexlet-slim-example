@@ -1,8 +1,3 @@
-<form action='/users' method='get'>
-    <input type="search" name="term" value="<?php print_r(htmlspecialchars((string)$term)) ?>" />
-    <input type="submit" value="Search" />
-</form>
-
 <?php if ($flash): ?>
 <small> <font color=green> 
     <?php foreach ($flash as $mess): ?> 
@@ -10,6 +5,19 @@
     <?php endforeach?>
 </font> </small>
 <?php endif ?>
+
+<?php if (!($authUser)): ?>
+    <h3> Введите email </h3>
+    <form action='/users/login' method='post'>
+    <input type='email' name='user[email]' value=''>
+    <input type='submit' value='Log In'>
+    </form>
+<?php else: ?>
+
+    <form action='/users' method='get'>
+    <input type="search" name="term" value="<?php print_r(htmlspecialchars((string)$term)) ?>" />
+    <input type="submit" value="Search" />
+    </form>
 
 <h1> USERS </h1>
 <?php if ($users): ?>
@@ -23,3 +31,11 @@
 <br>
 <br>
 <a href="/users/new"> Создать нового пользователя </a>
+<br>
+<br>
+<form action='/users/logout' method='post'>
+    <input type='hidden' name='_METHOD' value='DELETE'>
+    <input type='submit' value='Log Out'>
+    </form>
+<?php endif ?>    
+

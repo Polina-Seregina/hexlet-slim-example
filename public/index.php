@@ -54,8 +54,10 @@ class Validator
 $app->get('/users', function ($request, $response) {
     $term = $request->getQueryParam('term'); // получаем из запроса параметры поиска
     $users = json_decode($request->getCookieParam('users', json_encode([])), true);
-    $messages = $this->get('flash')->getMessages(); // получаем сообщение (обработчик post /users)
+    $emails = array_values(array_map(fn($user) => $user['email'], $users));
 
+    $messages = $this->get('flash')->getMessages(); // получаем сообщение (обработчик post /users)
+    $authUser = $_SESSION['user'] ?? null;
     // фильрация пользователей 
     if ($term) {
         $filteredUsers = array_filter($users, function($user) use ($term) {
@@ -66,15 +68,17 @@ $app->get('/users', function ($request, $response) {
         });
         $users = $filteredUsers;
     }
-    $params = ['users' => $users, 'term' => $term, 'flash' => $messages]; //записываем параметры в массив и передаем 
+    $params = ['authUser' => $authUser, 'users' => $users, 'term' => $term, 'flash' => $messages]; //записываем параметры в массив и передаем 
 	return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 })->setName('users');
 
 $app->get('/users/new', function ($request, $response) {
     $user = [];
+    $authUser = $_SESSION['user'] ?? null;
     $params = [
         'user' => ['nickname' => '', 'email' => ''],
-        'errors' => []
+        'errors' => [],
+        'authUser' => $authUser
     ];
     return $this->get('renderer')->render($response, "users/new_user.phtml", $params);
 })->setName('newUser');
@@ -83,12 +87,15 @@ $app->get('/users/{id}', function ($request, $response, $args) {
    $id = $args['id'];
    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
    $user = $users[$id];
+
+   $authUser = $_SESSION['user'] ?? null;
+
    $messages = $this->get('flash')->getMessages(); // получаем сообщение (обработчик patch /users/id/edit)
-   if ($user) { 
+   if (($user) and ($authUser)) { 
         // Указанный путь считается относительно базовой директории для шаблонов, заданной на этапе конфигурации
         // $this доступен внутри анонимной функции благодаря https://php.net/manual/ru/closure.bindto.php
         // $this в Slim это контейнер зависимостей
-        $params = ['user' => $user, 'flash' => $messages];
+        $params = ['user' => $user, 'flash' => $messages, 'authUser' => $authUser];
         return $this->get('renderer')->render($response, 'users/show.phtml', $params);
    }
 
@@ -125,7 +132,10 @@ $app->get('/users/{id}/edit', function($request, $response, $args) {
     $id = $args['id'];
     $users = json_decode($request->getCookieParam('users', json_encode([])), true);
     $user = $users[$id];
-    $params = ['user' => $user, 'errors' => []];
+
+    $authUser = $_SESSION['user'] ?? null;
+
+    $params = ['user' => $user, 'errors' => [], 'authUser' => $authUser];
 
     return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
 
@@ -141,6 +151,8 @@ $app->patch('/users/{id}', function ($request, $response, $args) use ($router){
     $newNickname = $request->getParsedBodyParam('nickname');
     $newEmail = $request->getParsedBodyParam('email');
 
+    $authUser = $_SESSION['user'] ?? null;
+
     $updateUser = ['nickname' => $newNickname, 'email' => $newEmail, 'id' => $id];
 
     $validator = New Validator();
@@ -155,7 +167,7 @@ $app->patch('/users/{id}', function ($request, $response, $args) use ($router){
         $url = $router->urlFor('person', ['id' => $id]);
         return $response->withHeader('Set-Cookie', "users={$encodedUsers};Path=/")->withRedirect($url);
     }
-    $params = ['user' => $user, 'errors' => $errors];
+    $params = ['user' => $user, 'errors' => $errors, 'authUser' => $authUser];
     $response = $response->withStatus(422);
 	return $this->get('renderer')->render($response, '/users/edit.phtml', $params);
 });
@@ -164,9 +176,19 @@ $app->get('/users/{id}/delete', function($request, $response, $args) {
     $id = $args['id'];
     $users = json_decode($request->getCookieParam('users', json_encode([])), true);
     $user = $users[$id];
-    $params = ['user' => $user];
+
+    $authUser = $_SESSION['user'] ?? null;
+
+    $params = ['user' => $user, 'authUser' => $authUser];
     return $this->get('renderer')->render($response, 'users/delete.phtml', $params);
 }); 
+// обработчик удаления сессии 
+$app->delete('/users/logout', function($request, $response) use ($router){
+    $_SESSION = [];
+    session_destroy();
+    $url = $router->urlFor('users');
+    return $response->withRedirect($url);
+});
 
 $app->delete('/users/{id}', function($request, $response, $args) use ($router) {
     $id = $args['id'];
@@ -187,6 +209,24 @@ $app->delete('/users/{id}', function($request, $response, $args) use ($router) {
     return $response->withHeader('Set-Cookie', "users={$encodedUsers};Path=/")->withRedirect($url);
 });
 
+// обработчики для аутентификации 
+$app->post('/users/login', function($request, $response) use ($router) {
+    $currUser = $request->getParsedBodyParam('user');
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    $emails = array_map(fn($user) => $user['email'], $users);
+    if (in_array($currUser['email'], $emails)) {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['user'] = $currUser;
+        $url = $router->urlFor('users');
+        return $response->withRedirect($url);
+    } else {
+        $this->get('flash')->addMessage('error', 'user does not exist');
+    }
+    $url = $router->urlFor('users');
+    return $response->withRedirect($url);
+});
 
 
 $app->run();

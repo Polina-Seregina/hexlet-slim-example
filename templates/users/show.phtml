@@ -1,3 +1,4 @@
+<?php if ($authUser): ?>
 <?php if ($flash): ?>
 <small> <font color=green> 
     <?php foreach ($flash as $mess): ?> 
@@ -30,3 +31,6 @@
 <lable>
     <a href='/users'> ВСЕ пользователи </a>
 </lable>
+<?php else: ?> 
+    <h3> <a href='/users'> Войти в аккаунт </a> </h3>
+<?php endif ?>

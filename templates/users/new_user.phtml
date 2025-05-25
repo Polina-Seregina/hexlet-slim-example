@@ -1,3 +1,4 @@
+<?php if ($authUser): ?>
 <form action='/users' method='post'>
     <div>
         <lable>
@@ -19,3 +20,6 @@
 </div>
 <input type='submit' value='Sign Up'>
 </form>
+<?php else: ?> 
+    <h3> <a href='/users'> Войти в аккаунт </a> </h3>
+<?php endif ?>

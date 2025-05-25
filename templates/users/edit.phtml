@@ -1,3 +1,4 @@
+<?php if ($authUser): ?>
 <form action="/users/<?= htmlspecialchars($user['id']) ?>" method='post'>
     <input type="hidden" name="_METHOD" value="PATCH">
     <div>
@@ -25,3 +26,6 @@
 </div>
 <input type='submit' value='Update'>
 </form>
+<?php else: ?> 
+    <h3> <a href='/users'> Войти в аккаунт </a> </h3>
+<?php endif ?>
