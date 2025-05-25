@@ -12,7 +12,7 @@
 
 
 <lable>
-    <a href='<?= "/users" . "/{$user['id']}" . "/edit"?>'> Редактировать пользователя </a>
+    <a href="/users/<?= htmlspecialchars($user['id'])?>/edit"> Редактировать пользователя </a>
 </lable>
 
 <br>
@@ -20,13 +20,12 @@
 <br>
 
 <lable>
-    <a href="/users/<?= htmlspecialchars($user['id']) ?>/delete"> Удалить пользователя </a>
+    <a href="/users/<?= htmlspecialchars($user['id'])?>/delete"> Удалить пользователя </a>
 </lable>
 
 <br>
 
 <br>
-
 
 <lable>
     <a href='/users'> ВСЕ пользователи </a>
