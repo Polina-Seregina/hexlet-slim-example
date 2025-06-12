@@ -6,6 +6,10 @@ require __DIR__.'/../vendor/autoload.php';
 use Slim\Factory\AppFactory;
 use DI\Container;
 use Slim\Middleware\MethodOverrideMiddleware; //поддержка переопределения метода в Слим (html post->patch)
+use App\UserValidator;
+use App\Car;
+use App\CarRepository;
+use App\CarValidator;
 
 // Старт PHP сессии
 session_start();
@@ -19,6 +23,16 @@ $container->set('flash', function () {
     return new \Slim\Flash\Messages();
 });
 
+$container->set(\PDO::class, function () {
+    $conn = new \PDO('sqlite:database.sqlite');
+    $conn->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+    return $conn;
+});
+
+$initFilePath = implode('/', [dirname(__DIR__), 'init.sql']);
+$initSql = file_get_contents($initFilePath);
+$container->get(\PDO::class)->exec($initSql);
+
 $app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
 $app->add(MethodOverrideMiddleware::class); // поддержка переопределения метода в Слим (html post->patch)
@@ -30,25 +44,6 @@ $app->get('/', function ($request, $response) {
     // return $response->write('Welcome to Slim!');
 });
 
-
-class Validator
-
-{
-    public function validate($user) {
-        $errors = [];
-
-        if (empty($user['nickname'])) {
-            $errors['nickname'] = 'Can`t be blank';
-        };
-        if (strlen($user['nickname']) < 5) {
-            $errors['nickname'] = 'must be more than 4 characters';
-        };
-        if (empty($user['email'])) {
-            $errors['email'] = 'Can`t be blank';
-        };
-        return $errors;
-    }
-} 
 
 // обработчик для страницы /users с формой для поиска 
 $app->get('/users', function ($request, $response) {
@@ -112,7 +107,7 @@ $app->post('/users', function ($request, $response) use ($router){
     $user['id'] = uniqid();
     $id = $user['id'];
 
-    $validator = New Validator();
+    $validator = New UserValidator();
     $errors = $validator->validate($user);
 
     if (count($errors) === 0) {
@@ -155,7 +150,7 @@ $app->patch('/users/{id}', function ($request, $response, $args) use ($router){
 
     $updateUser = ['nickname' => $newNickname, 'email' => $newEmail, 'id' => $id];
 
-    $validator = New Validator();
+    $validator = New UserValidator();
     $errors = $validator->validate($updateUser);
 
     if (count($errors) === 0) {
@@ -228,5 +223,115 @@ $app->post('/users/login', function($request, $response) use ($router) {
     return $response->withRedirect($url);
 });
 
+// обработчики для car
+
+$app->get('/cars', function ($request, $response) {
+    $carRepository = $this->get(CarRepository::class);
+    $cars = $carRepository->getEntities();
+
+    $messages = $this->get('flash')->getMessages();
+
+    $params = [
+      'cars' => $cars,
+      'flash' => $messages
+    ];
+
+    return $this->get('renderer')->render($response, 'cars/index.phtml', $params);
+})->setName('cars.index');
+
+$app->get('/cars/new', function ($request, $response) {
+    $params = [
+        'car' => new Car(),
+        'errors' => []
+    ];
+
+    return $this->get('renderer')->render($response, 'cars/new.phtml', $params);
+})->setName('cars.create');
+
+$app->get('/cars/{id}', function ($request, $response, $args) {
+    $carRepository = $this->get(CarRepository::class);
+    $id = $args['id'];
+    $car = $carRepository->find($id);
+
+    if (is_null($car)) {
+        return $response->write('Page not found')->withStatus(404);
+    }
+
+    $messages = $this->get('flash')->getMessages();
+
+    $params = [
+        'car' => $car,
+        'flash' => $messages
+    ];
+
+    return $this->get('renderer')->render($response, 'cars/show.phtml', $params);
+})->setName('cars.show');
+
+$app->post('/cars', function ($request, $response) use ($router) {
+    $carRepository = $this->get(CarRepository::class);
+    $carData = $request->getParsedBodyParam('car');
+
+    $validator = new CarValidator();
+    $errors = $validator->validate($carData);
+
+    if (count($errors) === 0) {
+        $car = Car::fromArray([$carData['make'], $carData['model']]);
+        $carRepository->save($car);
+        $this->get('flash')->addMessage('success', 'Car was added successfully');
+        return $response->withRedirect($router->urlFor('cars.index'));
+    }
+
+    $params = [
+        'car' => $carData,
+        'errors' => $errors
+    ];
+
+    return $this->get('renderer')->render($response->withStatus(422), 'cars/new.phtml', $params);
+})->setName('cars.store');
+
+$app->get('/cars/{id}/edit', function ($request, $response, $args) {
+    $carRepository = $this->get(CarRepository::class);
+    $messages = $this->get('flash')->getMessages();
+    $id = $args['id'];
+    $car = $carRepository->find($id);
+
+    $params = [
+        'car' => $car,
+        'errors' => [],
+        'flash' => $messages
+    ];
+
+    return $this->get('renderer')->render($response, 'cars/edit.phtml', $params);
+})->setName('cars.edit');
+
+$app->patch('/cars/{id}', function ($request, $response, $args) use ($router) {
+    $carRepository = $this->get(CarRepository::class);
+    $id = $args['id'];
+
+    $car = $carRepository->find($id);
+
+    if (is_null($car)) {
+        return $response->write('Page not found')->withStatus(404);
+    }
+
+    $carData = $request->getParsedBodyParam('car');
+    $validator = new CarValidator();
+    $errors = $validator->validate($carData);
+
+    if (count($errors) === 0) {
+        $car->setMake($carData['make']);
+        $car->setModel($carData['model']);
+        $carRepository->save($car);
+        $this->get('flash')->addMessage('success', "Car was updated successfully");
+        return $response->withRedirect($router->urlFor('cars.show', $args));
+    }
+
+    $params = [
+        'car' => $car,
+        'errors' => $errors
+    ];
+
+    return $this->get('renderer')->render($response->withStatus(422), 'cars/edit.phtml', $params);
+});
 
 $app->run();
